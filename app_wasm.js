@@ -5105,6 +5105,44 @@ async function createWasm() {
   var _emscripten_set_resize_callback_on_thread = (target, userData, useCapture, callbackfunc, targetThread) =>
       registerUiEventCallback(target, userData, useCapture, callbackfunc, 10, "resize", targetThread);
 
+  
+  
+  
+  var registerWheelEventCallback = (target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) => {
+      JSEvents.wheelEvent ||= _malloc(96);
+  
+      // The DOM Level 3 events spec event 'wheel'
+      var wheelHandlerFunc = (e = event) => {
+        var wheelEvent = JSEvents.wheelEvent;
+        fillMouseEventData(wheelEvent, e, target);
+        HEAPF64[(((wheelEvent)+(64))>>3)] = e["deltaX"];
+        HEAPF64[(((wheelEvent)+(72))>>3)] = e["deltaY"];
+        HEAPF64[(((wheelEvent)+(80))>>3)] = e["deltaZ"];
+        HEAP32[(((wheelEvent)+(88))>>2)] = e["deltaMode"];
+        if (getWasmTableEntry(callbackfunc)(eventTypeId, wheelEvent, userData)) e.preventDefault();
+      };
+  
+      var eventHandler = {
+        target,
+        allowsDeferredCalls: true,
+        eventTypeString,
+        callbackfunc,
+        handlerFunc: wheelHandlerFunc,
+        useCapture
+      };
+      return JSEvents.registerOrRemoveHandler(eventHandler);
+    };
+  
+  var _emscripten_set_wheel_callback_on_thread = (target, userData, useCapture, callbackfunc, targetThread) => {
+      target = findEventTarget(target);
+      if (!target) return -4;
+      if (typeof target.onwheel != 'undefined') {
+        return registerWheelEventCallback(target, userData, useCapture, callbackfunc, 9, "wheel", targetThread);
+      } else {
+        return -1;
+      }
+    };
+
   var GLctx;
   
   var webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance = (ctx) =>
@@ -7221,7 +7259,6 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'stringToUTF8OnStack',
   'writeArrayToMemory',
   'registerKeyEventCallback',
-  'registerWheelEventCallback',
   'registerFocusEventCallback',
   'fillDeviceOrientationEventData',
   'registerDeviceOrientationEventCallback',
@@ -7444,6 +7481,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'getBoundingClientRect',
   'fillMouseEventData',
   'registerMouseEventCallback',
+  'registerWheelEventCallback',
   'registerUiEventCallback',
   'currentFullscreenStrategy',
   'restoreOldWindowedStyle',
@@ -7754,6 +7792,8 @@ var wasmImports = {
   emscripten_set_mouseup_callback_on_thread: _emscripten_set_mouseup_callback_on_thread,
   /** @export */
   emscripten_set_resize_callback_on_thread: _emscripten_set_resize_callback_on_thread,
+  /** @export */
+  emscripten_set_wheel_callback_on_thread: _emscripten_set_wheel_callback_on_thread,
   /** @export */
   emscripten_webgl_create_context: _emscripten_webgl_create_context,
   /** @export */
